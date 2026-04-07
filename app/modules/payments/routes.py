@@ -1,9 +1,9 @@
+from app.modules.payments.service import PaymentService
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 from app.db.database import get_db
 from .schemas import PaymentCreate, PaymentResponse
-from .service import PaymentService
 
 router = APIRouter()
 

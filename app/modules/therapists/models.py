@@ -11,6 +11,7 @@ class Therapist(TimestampMixin, Base):
     last_name = Column(String, nullable=False)
     specialty = Column(String, nullable=False) # e.g. "Osteopatía"
     email = Column(String, unique=True, index=True, nullable=True)
+    document_number = Column(String, unique=True, nullable=True)
     is_active = Column(Boolean, default=True)
 
     appointments = relationship("Appointment", back_populates="therapist")

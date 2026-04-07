@@ -196,9 +196,14 @@ async def _upcoming_today(db: AsyncSession, now: datetime) -> list:
 
     return [
         {
+            "id":           appt.id,
             "time":         appt.start_time.strftime("%H:%M"),
             "patient_name": _full_name(appt.patient.first_name, appt.patient.last_name) if appt.patient else "—",
+            "patient_id":   appt.patient.id if appt.patient else None,
+            "patient_phone": appt.patient.phone_number if appt.patient else "—",
             "therapist":    _full_name(appt.therapist.first_name, appt.therapist.last_name) if appt.therapist else "—",
+            "treatment":    appt.treatment or "—",
+            "status":       appt.status,
         }
         for appt in appointments
     ]

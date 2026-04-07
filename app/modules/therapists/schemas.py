@@ -5,6 +5,7 @@ class TherapistBase(BaseModel):
     first_name: str
     last_name: str
     specialty: str
+    document_number: Optional[str] = None
     email: Optional[EmailStr] = None
     is_active: Optional[bool] = True
 

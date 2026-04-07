@@ -11,6 +11,7 @@ class Patient(TimestampMixin, Base):
     last_name = Column(String, nullable=False)
     phone_number = Column(String, nullable=True)
     email = Column(String, unique=True, nullable=True)
+    document_number = Column(String, unique=True, nullable=True)
     notes = Column(String, nullable=True)
 
     appointments = relationship("Appointment", back_populates="patient")
