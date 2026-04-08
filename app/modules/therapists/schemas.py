@@ -17,3 +17,13 @@ class TherapistResponse(TherapistBase):
 
     class Config:
         from_attributes = True
+
+
+class TherapistBrief(BaseModel):
+    id: int
+    first_name: str
+    last_name: str
+    specialty: str
+ 
+    class Config:
+        from_attributes = True

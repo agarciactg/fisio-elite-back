@@ -1,17 +1,16 @@
+from datetime import date, datetime, timedelta
 from fastapi import HTTPException, status
-
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import IntegrityError
-
-from app.modules.therapists.models import Therapist
-from app.modules.patients.models import Patient
-
+ 
 from .models import Appointment
 from .schemas import AppointmentCreate
-
-
+from app.modules.patients.models import Patient
+from app.modules.therapists.models import Therapist
+ 
+ 
 class AppointmentService:
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -83,3 +82,97 @@ class AppointmentService:
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Error de integridad al crear la cita. Verifica los datos enviados.",
             )
+
+    async def get_by_day(
+        self,
+        target_date: date,
+        therapist_id: int | None = None,
+    ) -> list[Appointment]:
+        """
+        Date appointments.
+        GET /api/v1/appointments/by-day?date=2026-04-08&therapist_id=1
+        """
+        day_start = datetime.combine(target_date, datetime.min.time())
+        day_end   = datetime.combine(target_date, datetime.max.time())
+ 
+        stmt = (
+            select(Appointment)
+            .options(
+                selectinload(Appointment.patient),
+                selectinload(Appointment.therapist),
+            )
+            .where(Appointment.start_time >= day_start)
+            .where(Appointment.start_time <= day_end)
+        )
+ 
+        if therapist_id:
+            stmt = stmt.where(Appointment.therapist_id == therapist_id)
+ 
+        stmt = stmt.order_by(Appointment.start_time)
+        result = await self.db.execute(stmt)
+        return result.scalars().all()
+ 
+    async def get_by_week(
+        self,
+        target_date: date,
+        therapist_id: int | None = None,
+    ) -> list[Appointment]:
+        """
+        Appointments for a week (Monday–Sunday) containing the given date.
+        GET /api/v1/appointments/by-week?date=2026-04-08&therapist_id=1
+        """
+        monday    = target_date - timedelta(days=target_date.weekday())
+        sunday    = monday + timedelta(days=6)
+        week_start = datetime.combine(monday, datetime.min.time())
+        week_end   = datetime.combine(sunday, datetime.max.time())
+ 
+        stmt = (
+            select(Appointment)
+            .options(
+                selectinload(Appointment.patient),
+                selectinload(Appointment.therapist),
+            )
+            .where(Appointment.start_time >= week_start)
+            .where(Appointment.start_time <= week_end)
+        )
+ 
+        if therapist_id:
+            stmt = stmt.where(Appointment.therapist_id == therapist_id)
+ 
+        stmt = stmt.order_by(Appointment.start_time)
+        result = await self.db.execute(stmt)
+        return result.scalars().all()
+ 
+    async def get_by_month(
+        self,
+        year: int,
+        month: int,
+        therapist_id: int | None = None,
+    ) -> list[Appointment]:
+        """
+        Appointments for a full month.
+        GET /api/v1/appointments/by-month?year=2026&month=4&therapist_id=1
+        """
+        month_start = datetime(year, month, 1)
+        if month == 12:
+            month_end = datetime(year + 1, 1, 1) - timedelta(seconds=1)
+        else:
+            month_end = datetime(year, month + 1, 1) - timedelta(seconds=1)
+ 
+        stmt = (
+            select(Appointment)
+            .options(
+                selectinload(Appointment.patient),
+                selectinload(Appointment.therapist),
+            )
+            .where(Appointment.start_time >= month_start)
+            .where(Appointment.start_time <= month_end)
+        )
+ 
+        if therapist_id:
+            stmt = stmt.where(Appointment.therapist_id == therapist_id)
+ 
+        stmt = stmt.order_by(Appointment.start_time)
+        result = await self.db.execute(stmt)
+        return result.scalars().all()
+ 
