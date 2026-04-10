@@ -76,3 +76,18 @@ async def cancel_appointment(
 ):
     """Cancels an appointment by changing its status to 'Canceled'."""
     return await service.cancel_appointment(appointment_id)
+
+
+@router.get("/free-slots")
+async def get_free_slots(
+    date: date = Query(..., description="Fecha YYYY-MM-DD"),
+    therapist_id: Optional[int] = Query(None, description="ID del terapeuta (opcional)"),
+    slot_minutes: int = Query(60, ge=15, le=240, description="Duración del slot en minutos"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Returns available slots for a therapist on a given day.
+    If no therapist is specified, returns slots with general availability.
+    """
+    service = AppointmentService(db)
+    return await service.get_free_slots(date, therapist_id, slot_minutes)
