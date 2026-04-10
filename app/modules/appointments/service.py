@@ -1,3 +1,4 @@
+from app.modules.appointments.schemas import AppointmentUpdate
 from datetime import date, datetime, timedelta
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -175,4 +176,43 @@ class AppointmentService:
         stmt = stmt.order_by(Appointment.start_time)
         result = await self.db.execute(stmt)
         return result.scalars().all()
- 
+
+    async def update_appointment(self, appointment_id: int, obj_in: AppointmentUpdate) -> Appointment:
+        result = await self.db.execute(
+            select(Appointment).where(Appointment.id == appointment_id)
+        )
+        db_obj = result.scalar_one_or_none()
+        
+        if not db_obj:
+            raise HTTPException(status_code=404, detail="Cita no encontrada")
+
+        update_data = obj_in.model_dump(exclude_unset=True)
+        
+        for field in update_data:
+            setattr(db_obj, field, update_data[field])
+
+        await self.db.commit()
+        await self.db.refresh(db_obj)
+        return db_obj
+
+    async def cancel_appointment(self, appointment_id: int) -> Appointment:
+        result = await self.db.execute(
+            select(Appointment)
+            .options(
+                selectinload(Appointment.patient),
+                selectinload(Appointment.therapist)
+            )
+            .where(Appointment.id == appointment_id)
+        )
+        db_obj = result.scalar_one_or_none()
+
+        if not db_obj:
+            raise HTTPException(status_code=404, detail="Cita no encontrada")
+
+        db_obj.status = "Canceled"
+        
+        await self.db.commit()
+        
+        await self.db.refresh(db_obj)
+        
+        return db_obj

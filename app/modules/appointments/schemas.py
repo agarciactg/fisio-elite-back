@@ -42,3 +42,15 @@ class AppointmentCalendarItem(BaseModel):
  
     class Config:
         from_attributes = True
+
+
+class AppointmentUpdate(BaseModel):
+    patient_id: Optional[int] = None
+    therapist_id: Optional[int] = None
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+    status: Optional[str] = None
+    treatment: Optional[str] = None
+
+    class Config:
+        from_attributes = True

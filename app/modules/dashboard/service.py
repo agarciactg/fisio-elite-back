@@ -1,3 +1,4 @@
+from datetime import timezone
 from datetime import date, datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func, cast, Date
@@ -9,10 +10,11 @@ from app.modules.appointments.models import Appointment
 from app.modules.patients.models import Patient
 from app.modules.therapists.models import Therapist
 from .schemas import DashboardStatsResponse
+from zoneinfo import ZoneInfo
 
 
 def _format_cop(value: float) -> str:
-    """Formatea en pesos colombianos. Ej: 1250000 → '$1.250.000'"""
+    """Format in Colombian pesos. Ex: 1250000 → '$1,250,000'"""
     return f"${int(value):,}".replace(",", ".")
 
 def _full_name(first: str, last: str) -> str:
@@ -82,7 +84,6 @@ class DashboardService:
         )
         appts_previous = appt_prev.scalar() or 0
 
-        # ── Nuevos pacientes ──────────────────────────────────────────────
         pat_cur = await self.db.execute(
             select(func.count(Patient.id))
             .where(Patient.created_at >= first_this)
@@ -113,7 +114,7 @@ class DashboardService:
 
 
 async def _weekly_appointments(db: AsyncSession) -> list:
-    """Últimas 5 semanas: citas actuales vs mismas semanas del período anterior."""
+    """Last 5 weeks: current appointments vs same weeks of the previous period."""
     today = date.today()
     weeks = []
     for i in range(4, -1, -1):
@@ -141,7 +142,7 @@ async def _weekly_appointments(db: AsyncSession) -> list:
 
 
 async def _recent_activity(db: AsyncSession) -> list:
-    """Últimas 10 citas con paciente, terapeuta y pago."""
+    """Last 10 appointments with patient, therapist and payment."""
     result = await db.execute(
         select(Appointment)
         .options(
@@ -177,7 +178,7 @@ async def _recent_activity(db: AsyncSession) -> list:
 
 
 async def _upcoming_today(db: AsyncSession, now: datetime) -> list:
-    """Citas de hoy que aún no han pasado, ordenadas por start_time."""
+    """Appointments of today that have not yet passed, ordered by start_time."""
     today_start = datetime.combine(now.date(), datetime.min.time())
     today_end   = datetime.combine(now.date(), datetime.max.time())
 
@@ -194,10 +195,11 @@ async def _upcoming_today(db: AsyncSession, now: datetime) -> list:
     )
     appointments = result.scalars().all()
 
+    colombia_tz = ZoneInfo("America/Bogota")
     return [
         {
             "id":           appt.id,
-            "time":         appt.start_time.strftime("%H:%M"),
+            "time":         appt.start_time.replace(tzinfo=timezone.utc).astimezone(colombia_tz).strftime("%H:%M"),
             "patient_name": _full_name(appt.patient.first_name, appt.patient.last_name) if appt.patient else "—",
             "patient_id":   appt.patient.id if appt.patient else None,
             "patient_phone": appt.patient.phone_number if appt.patient else "—",
@@ -210,7 +212,7 @@ async def _upcoming_today(db: AsyncSession, now: datetime) -> list:
 
 
 async def _appointments_by_therapist(db: AsyncSession, since: datetime) -> list:
-    """Citas por terapeuta desde 'since', con porcentaje relativo al máximo."""
+    """Appointments by therapist from 'since', with percentage relative to the maximum."""
     result = await db.execute(
         select(
             Therapist.first_name,

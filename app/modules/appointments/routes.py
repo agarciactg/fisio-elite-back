@@ -1,3 +1,4 @@
+from app.modules.appointments.schemas import AppointmentUpdate
 from datetime import date
 
 from typing import Optional, List
@@ -57,3 +58,21 @@ async def get_appointments_by_month(
     service = AppointmentService(db)
     return await service.get_by_month(year, month, therapist_id)
 
+
+@router.patch("/{appointment_id}", response_model=AppointmentResponse)
+async def update_appointment(
+    appointment_id: int,
+    appointment_data: AppointmentUpdate,
+    service: AppointmentService = Depends(get_appointment_service)
+):
+    """Edit specific fields of a citation (PATCH)."""
+    return await service.update_appointment(appointment_id, appointment_data)
+
+
+@router.post("/{appointment_id}/cancel", response_model=AppointmentResponse)
+async def cancel_appointment(
+    appointment_id: int,
+    service: AppointmentService = Depends(get_appointment_service)
+):
+    """Cancels an appointment by changing its status to 'Canceled'."""
+    return await service.cancel_appointment(appointment_id)
