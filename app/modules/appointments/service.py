@@ -5,13 +5,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import cast, Date, func
  
 from .models import Appointment
 from .schemas import AppointmentCreate
 from app.modules.patients.models import Patient
 from app.modules.therapists.models import Therapist
  
- 
+TIMEZONE = 'America/Bogota'
+
+def _local_date(column):
+    """
+    Convierte un timestamptz al horario de Bogotá y extrae solo la fecha.
+    Equivale a: CAST(col AT TIME ZONE 'America/Bogota' AS DATE)
+    """
+    return cast(func.timezone(TIMEZONE, column), Date)
+
 class AppointmentService:
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -91,19 +100,15 @@ class AppointmentService:
     ) -> list[Appointment]:
         """
         Date appointments.
-        GET /api/v1/appointments/by-day?date=2026-04-08&therapist_id=1
+        GET /api/v1/appointments/by-day?date=2026-04-09
         """
-        day_start = datetime.combine(target_date, datetime.min.time())
-        day_end   = datetime.combine(target_date, datetime.max.time())
- 
         stmt = (
             select(Appointment)
             .options(
                 selectinload(Appointment.patient),
                 selectinload(Appointment.therapist),
             )
-            .where(Appointment.start_time >= day_start)
-            .where(Appointment.start_time <= day_end)
+            .where(_local_date(Appointment.start_time) == target_date)
         )
  
         if therapist_id:
