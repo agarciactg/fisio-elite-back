@@ -17,9 +17,13 @@ router = APIRouter()
 def get_appointment_service(db: AsyncSession = Depends(get_db)):
     return AppointmentService(db)
 
-@router.get("/", response_model=List[AppointmentResponse])
-async def list_appointments(service: AppointmentService = Depends(get_appointment_service)):
-    return await service.get_appointments()
+@router.get("/", response_model=list[AppointmentResponse])
+async def list_appointments(
+    unpaid_only: bool = Query(False, description="Solo citas pendientes de pago"),
+    db: AsyncSession = Depends(get_db),
+):
+    service = AppointmentService(db)
+    return await service.get_appointments(unpaid_only=unpaid_only)
 
 @router.post("/", response_model=AppointmentResponse, status_code=status.HTTP_201_CREATED)
 async def create_appointment(appointment: AppointmentCreate, service: AppointmentService = Depends(get_appointment_service)):
