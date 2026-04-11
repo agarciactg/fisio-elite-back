@@ -7,6 +7,7 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str
+    name: str
 
 class UserResponse(UserBase):
     id: int
@@ -18,3 +19,6 @@ class UserResponse(UserBase):
 class Token(BaseModel):
     access_token: str
     token_type: str
+    role: str
+    name: str
+    email: str

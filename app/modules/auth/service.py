@@ -1,3 +1,4 @@
+import secrets
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -9,6 +10,12 @@ from .schemas import UserCreate
  
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
  
+DEFAULT_PASSWORD_LENGTH = 12
+
+def _generate_temp_password() -> str:
+    """Generated a random password for the user."""
+    return secrets.token_urlsafe(DEFAULT_PASSWORD_LENGTH)
+
  
 class AuthService:
     def __init__(self, db: AsyncSession):
@@ -61,3 +68,27 @@ class AuthService:
                 headers={"WWW-Authenticate": "Bearer"},
             )
         return user
+
+    @staticmethod
+    async def _create_user_if_not_exists(
+        db: AsyncSession,
+        email: str,
+    ) -> tuple[User, str | None]:
+        """
+        Crea un User en la tabla users si no existe ya uno con ese email.
+        Retorna (user, temp_password) si lo creó, o (user, None) si ya existía.
+        """
+        existing = await db.execute(select(User).filter(User.email == email))
+        user = existing.scalars().first()
+    
+        if user:
+            return user, None  # Ya existe, no hacer nada
+    
+        temp_password = _generate_temp_password()
+        new_user = User(
+            email=email,
+            hashed_password=pwd_context.hash(temp_password),
+            is_active=True,
+        )
+        db.add(new_user)
+        return new_user, temp_password

@@ -5,6 +5,7 @@ from sqlalchemy.exc import IntegrityError
  
 from .models import Therapist
 from .schemas import TherapistCreate
+from app.modules.auth.service import AuthService
  
  
 class TherapistService:
@@ -31,8 +32,19 @@ class TherapistService:
         try:
             db_therapist = Therapist(**therapist.model_dump())
             self.db.add(db_therapist)
+ 
+            temp_password = None
+            if therapist.email:
+                _, temp_password = await AuthService._create_user_if_not_exists(self.db, therapist.email)
             await self.db.commit()
             await self.db.refresh(db_therapist)
+ 
+            if temp_password:
+                print(
+                    f"[INFO] Usuario creado para terapeuta '{therapist.email}'. "
+                    f"Contraseña temporal: {temp_password}"
+                )
+ 
             return db_therapist
  
         except IntegrityError:

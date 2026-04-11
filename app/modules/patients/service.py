@@ -5,6 +5,7 @@ from sqlalchemy.exc import IntegrityError
  
 from .models import Patient
 from .schemas import PatientCreate
+from app.modules.auth.service import AuthService
  
  
 class PatientService:
@@ -16,6 +17,7 @@ class PatientService:
         return result.scalars().all()
  
     async def create_patient(self, patient: PatientCreate) -> Patient:
+        # Validar email duplicado en patients
         if patient.email:
             existing = await self.db.execute(
                 select(Patient).filter(Patient.email == patient.email)
@@ -29,8 +31,19 @@ class PatientService:
         try:
             db_patient = Patient(**patient.model_dump())
             self.db.add(db_patient)
+ 
+            temp_password = None
+            if patient.email:
+                _, temp_password = await AuthService._create_user_if_not_exists(self.db, patient.email)
             await self.db.commit()
             await self.db.refresh(db_patient)
+ 
+            if temp_password:
+                print(
+                    f"[INFO] Usuario creado para paciente '{patient.email}'. "
+                    f"Contraseña temporal: {temp_password}"
+                )
+ 
             return db_patient
  
         except IntegrityError:
