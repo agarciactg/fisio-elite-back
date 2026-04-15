@@ -9,7 +9,6 @@ from app.modules.payments.models import Payment
 from app.modules.appointments.models import Appointment
 from app.modules.patients.models import Patient
 from app.modules.therapists.models import Therapist
-from .schemas import DashboardStatsResponse
 from zoneinfo import ZoneInfo
 
 
@@ -41,6 +40,8 @@ def _start_of_prev_month(d: date) -> datetime:
     last_prev = first_this - timedelta(days=1)
     return datetime(last_prev.year, last_prev.month, 1)
 
+def _attendance_ratio(attended: int, total: int) -> float:
+    return round((attended / total) * 100, 1) if total > 0 else 0.0
 
 class DashboardService:
     def __init__(self, db: AsyncSession):
@@ -97,6 +98,42 @@ class DashboardService:
         )
         patients_previous = pat_prev.scalar() or 0
 
+        att_cur = await self.db.execute(
+            select(
+                func.count(Appointment.id).filter(
+                    Appointment.status == "Completed"
+                ).label("completed"),
+                func.count(Appointment.id).filter(
+                    Appointment.status.in_(["Completed", "Confirmed", "NoShow"])
+                ).label("total"),
+            )
+            .where(Appointment.start_time >= first_this)
+            .where(Appointment.start_time <= now)
+        )
+        att_cur_row = att_cur.fetchone()
+        attended_current = att_cur_row.completed if att_cur_row else 0
+        total_current    = att_cur_row.total     if att_cur_row else 0
+
+        att_prev = await self.db.execute(
+            select(
+                func.count(Appointment.id).filter(
+                    Appointment.status == "Completed"
+                ).label("completed"),
+                func.count(Appointment.id).filter(
+                    Appointment.status.in_(["Completed", "Confirmed", "NoShow"])
+                ).label("total"),
+            )
+            .where(Appointment.start_time >= first_prev)
+            .where(Appointment.start_time <= last_prev)
+        )
+        att_prev_row = att_prev.fetchone()
+        attended_previous = att_prev_row.completed if att_prev_row else 0
+        total_previous    = att_prev_row.total     if att_prev_row else 0
+
+        attendance_current  = _attendance_ratio(attended_current, total_current)
+        attendance_previous = _attendance_ratio(attended_previous, total_previous)
+
+
         return {
             "revenue":              _format_cop(revenue_current),
             "revenue_trend":        _trend(revenue_current, revenue_previous),
@@ -104,8 +141,8 @@ class DashboardService:
             "appointments_trend":   _trend(appts_current, appts_previous),
             "new_patients":         patients_current,
             "new_patients_trend":   _trend(patients_current, patients_previous),
-            "attendance_ratio":     94.8,
-            "attendance_trend":     0.8,
+            "attendance_ratio":     attendance_current,
+            "attendance_trend":     _trend(attendance_current, attendance_previous),
             "weekly_appointments":  await _weekly_appointments(self.db),
             "recent_activity":      await _recent_activity(self.db),
             "upcoming_today":       await _upcoming_today(self.db, now),
