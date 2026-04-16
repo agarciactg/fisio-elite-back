@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.database import get_db
-from .schemas import PatientCreate, PatientResponse, PatientDirectoryResponse
+from .schemas import PatientCreate, PatientUpdate, PatientResponse, PatientDirectoryResponse
 from .service import PatientService
 from typing import List
 
@@ -21,3 +21,12 @@ async def list_patients(service: PatientService = Depends(get_patient_service)):
 @router.post("/", response_model=PatientResponse, status_code=status.HTTP_201_CREATED)
 async def create_patient(patient: PatientCreate, service: PatientService = Depends(get_patient_service)):
     return await service.create_patient(patient)
+
+@router.put("/{patient_id}", response_model=PatientResponse)
+async def update_patient(patient_id: int, patient: PatientUpdate, service: PatientService = Depends(get_patient_service)):
+    return await service.update_patient(patient_id, patient)
+
+@router.delete("/{patient_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_patient(patient_id: int, service: PatientService = Depends(get_patient_service)):
+    await service.delete_patient(patient_id)
+    return None

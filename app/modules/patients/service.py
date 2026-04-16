@@ -10,7 +10,7 @@ from sqlalchemy import func, cast, Date
 from sqlalchemy.orm import selectinload
  
 from .models import Patient
-from .schemas import PatientCreate, PatientDirectoryResponse, PatientDirectorySummary, PatientDirectoryDetail
+from .schemas import PatientCreate, PatientUpdate, PatientDirectoryResponse, PatientDirectorySummary, PatientDirectoryDetail
 
 from datetime import datetime, date, timedelta
 from app.modules.auth.service import AuthService
@@ -167,4 +167,42 @@ class PatientService:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Error de integridad al crear el paciente. El correo ya puede estar en uso.",
+            )
+
+    async def update_patient(self, patient_id: int, patient_data: PatientUpdate) -> Patient:
+        result = await self.db.execute(select(Patient).filter(Patient.id == patient_id))
+        patient = result.scalars().first()
+        if not patient:
+            raise HTTPException(status_code=404, detail="Paciente no encontrado")
+
+        update_data = patient_data.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(patient, key, value)
+
+        try:
+            await self.db.commit()
+            await self.db.refresh(patient)
+            return patient
+        except IntegrityError:
+            await self.db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="El correo o documento ya están registrados para otro paciente.",
+            )
+
+    async def delete_patient(self, patient_id: int) -> dict:
+        result = await self.db.execute(select(Patient).filter(Patient.id == patient_id))
+        patient = result.scalars().first()
+        if not patient:
+            raise HTTPException(status_code=404, detail="Paciente no encontrado")
+
+        try:
+            await self.db.delete(patient)
+            await self.db.commit()
+            return {"detail": "Paciente eliminado"}
+        except IntegrityError:
+            await self.db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No se puede eliminar el paciente porque tiene registros asociados (ej. citas).",
             )
