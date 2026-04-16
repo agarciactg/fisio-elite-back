@@ -13,8 +13,8 @@ from .models import Appointment
 from .schemas import AppointmentCreate
 from app.modules.patients.models import Patient
 from app.modules.therapists.models import Therapist
- 
-TIMEZONE = 'America/Bogota'
+from app.modules.constants import TIMEZONE
+
 CLINIC_START  = 8   
 CLINIC_END    = 20  
 SLOT_MINUTES  = 60  
