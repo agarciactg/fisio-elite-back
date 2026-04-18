@@ -5,12 +5,22 @@ from datetime import datetime
 
 def _derive_status(last_visit: datetime | None, has_future: bool) -> str:
     if has_future:
-        return "ACTIVE"
+        return "Disponible"
+    
     if last_visit is None:
-        return "INACTIVE"
-    days_since = (datetime.now(ZoneInfo(TIMEZONE)) - last_visit).days
+        return "Fuera"
+    
+    tz = ZoneInfo(TIMEZONE)
+    now = datetime.now(tz)
+    
+    if last_visit.tzinfo is None:
+        last_visit = last_visit.replace(tzinfo=tz)
+    
+    days_since = (now - last_visit).days
+    
     if days_since <= 30:
-        return "ACTIVE"
-    if days_since <= 60:
-        return "PACKAGE PENDING"
-    return "INACTIVE"
+        return "Disponible"
+    elif days_since <= 60:
+        return "En sesión"
+    else:
+        return "Fuera"
