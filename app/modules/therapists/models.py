@@ -14,4 +14,4 @@ class Therapist(TimestampMixin, Base):
     document_number = Column(String, unique=True, nullable=True)
     is_active = Column(Boolean, default=True)
 
-    appointments = relationship("Appointment", back_populates="therapist")
+    appointments = relationship("Appointment", back_populates="therapist", cascade="all, delete-orphan")

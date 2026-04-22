@@ -7,3 +7,5 @@
 .venv_dev
 .venv_docs
 .venv_test_coverage
+*.pyc
+__pycache__/

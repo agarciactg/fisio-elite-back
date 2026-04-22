@@ -3,6 +3,7 @@ import secrets
 from datetime import date, datetime, timedelta
 
 from app.modules.therapists.schemas import TherapistDirectoryResponse
+from app.modules.therapists.schemas import TherapistUpdate
 from app.modules.therapists.schemas import TeamPerformanceSummary
 from app.modules.appointments.models import Appointment
 from app.modules.therapists.schemas import TherapistDirectoryItem
@@ -109,18 +110,74 @@ class TherapistService:
                         is_active=True,
                     ))
                     print(f"[INFO] User creado para terapeuta '{therapist.email}'. Contraseña temporal: {temp_pwd}")
- 
+
             await self.db.commit()
             await self.db.refresh(db_therapist)
             return db_therapist
- 
+
         except IntegrityError:
             await self.db.rollback()
             raise HTTPException(
                 status_code=http_status.HTTP_409_CONFLICT,
                 detail="Error de integridad al crear el terapeuta.",
             )
- 
+
+    async def update_therapist(self, therapist_id: int, therapist_update: TherapistUpdate) -> Therapist:
+        result = await self.db.execute(
+            select(Therapist).filter(Therapist.id == therapist_id)
+        )
+        db_therapist = result.scalars().first()
+        if not db_therapist:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail=f"No se encontró el terapeuta con ID {therapist_id}.",
+            )
+
+        update_data = therapist_update.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(db_therapist, field, value)
+
+        try:
+            await self.db.commit()
+            await self.db.refresh(db_therapist)
+            return db_therapist
+        except IntegrityError:
+            await self.db.rollback()
+            raise HTTPException(
+                status_code=http_status.HTTP_409_CONFLICT,
+                detail="Error de integridad al actualizar el terapeuta. El correo o documento ya puede estar en uso.",
+            )
+
+    async def get_therapist(self, therapist_id: int) -> Therapist:
+        result = await self.db.execute(
+            select(Therapist).filter(Therapist.id == therapist_id)
+        )
+        return result.scalars().first()
+
+    async def delete_therapist(self, therapist_id: int) -> None:
+        result = await self.db.execute(
+            select(Therapist).filter(Therapist.id == therapist_id)
+        )
+        db_therapist = result.scalars().first()
+        if not db_therapist:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail=f"No se encontró el terapeuta con ID {therapist_id}.",
+            )
+
+        therapist_email = db_therapist.email
+
+        if therapist_email:
+            user_result = await self.db.execute(
+                select(User).filter(User.email == therapist_email)
+            )
+            db_user = user_result.scalars().first()
+            if db_user:
+                await self.db.delete(db_user)
+
+        await self.db.delete(db_therapist)
+        await self.db.commit()
+
     async def get_therapist_directory(self) -> dict:
         now   = datetime.now()
         today = date.today()

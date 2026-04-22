@@ -16,6 +16,14 @@ class TherapistBase(BaseModel):
 class TherapistCreate(TherapistBase):
     pass
 
+class TherapistUpdate(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    specialty: Optional[str] = None
+    email: Optional[EmailStr] = None
+    document_number: Optional[str] = None
+    is_active: Optional[bool] = None
+
 class TherapistResponse(TherapistBase):
     id: int
 

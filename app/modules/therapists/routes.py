@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 from app.db.database import get_db
-from .schemas import TherapistCreate, TherapistResponse
+from .schemas import TherapistCreate, TherapistResponse, TherapistUpdate
 from .service import TherapistService
 
 router = APIRouter()
@@ -18,6 +18,21 @@ async def list_therapists(service: TherapistService = Depends(get_therapist_serv
 @router.post("/", response_model=TherapistResponse, status_code=status.HTTP_201_CREATED)
 async def create_therapist(therapist: TherapistCreate, service: TherapistService = Depends(get_therapist_service)):
     return await service.create_therapist(therapist)
+
+@router.patch("/{therapist_id}", response_model=TherapistResponse)
+async def update_therapist(
+    therapist_id: int,
+    therapist: TherapistUpdate,
+    service: TherapistService = Depends(get_therapist_service)
+):
+    return await service.update_therapist(therapist_id, therapist)
+
+@router.delete("/{therapist_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_therapist(
+    therapist_id: int,
+    service: TherapistService = Depends(get_therapist_service)
+):
+    await service.delete_therapist(therapist_id)
  
 @router.get("/directory", response_model=TherapistDirectoryResponse)
 async def get_therapist_directory(db: AsyncSession = Depends(get_db)):
